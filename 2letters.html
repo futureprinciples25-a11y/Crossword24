@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2-Letter Word Challenge (127 Words)</title>
+    <style>
+        :root { --primary: #a855f7; --bg: #0f172a; --card: #1e293b; --success: #10b981; --danger: #f43f5e; --text: #f8fafc; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .container { background: var(--card); padding: 30px; border-radius: 24px; text-align: center; width: 90%; max-width: 500px; border: 1px solid #334155; position: relative; }
+        
+        .screen { display: none; }
+        .active { display: block; }
+
+        .btn { color: white; border: none; padding: 18px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; width: 100%; margin: 8px 0; transition: 0.3s; text-transform: uppercase; }
+        .btn-start { background: linear-gradient(45deg, #7e22ce, #a855f7); }
+        .btn-dict { background: #334155; border: 1px solid #475569; }
+        .btn-finish { background: var(--danger); }
+
+        /* Modal พจนานุกรม */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
+        .modal-content { background: var(--card); margin: 5% auto; padding: 25px; border-radius: 20px; width: 85%; max-width: 450px; border: 1px solid var(--primary); max-height: 80vh; overflow-y: auto; }
+        .dict-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; }
+        .dict-item { background: #0f172a; padding: 6px; border-radius: 5px; font-weight: bold; font-size: 0.85rem; color: var(--primary); border: 1px solid #334155; }
+
+        input { width: 100%; padding: 15px; font-size: 2.5rem; background: #0f172a; border: 2px solid #334155; border-radius: 12px; color: white; text-align: center; text-transform: uppercase; outline: none; margin-top: 15px; box-sizing: border-box; }
+        input:focus { border-color: var(--primary); }
+        
+        .word-stack { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; min-height: 100px; max-height: 250px; overflow-y: auto; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px inset #334155; }
+        .word-tag { background: #334155; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 1.2rem; }
+        
+        .correct { color: var(--success); font-weight: bold; }
+        .wrong { color: var(--danger); text-decoration: line-through; opacity: 0.6; }
+        #timer { font-size: 2.5rem; font-weight: 900; color: var(--primary); margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="lobby-screen" class="screen active">
+        <h1 style="color:var(--primary); font-size: 2.5rem; margin-bottom: 0;">2-LETTER</h1>
+        <p style="color:#94a3b8; margin-bottom: 25px;">ท้าทายความจำกับคำศัพท์ 127 คำ</p>
+        <button class="btn btn-start" onclick="startGame()">🚀 เริ่มเกม</button>
+        <button class="btn btn-dict" onclick="toggleDict(true)">📖 พจนานุกรม (127 คำ)</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div id="timer">00:00</div>
+        <input type="text" id="word-input" maxlength="2" placeholder="??" autocomplete="off">
+        <div class="word-stack" id="stack-display"></div>
+        <button class="btn btn-finish" onclick="finishGame()">🏁 เสร็จสิ้น</button>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <h2 style="color:var(--primary)">สรุปผลคะแนน</h2>
+        <div id="res-stats" style="margin: 20px 0; font-size: 1.6rem;"></div>
+        <div id="res-details" class="word-stack" style="text-align:left; display:block;"></div>
+        <button class="btn btn-start" onclick="location.reload()">🔄 เล่นใหม่</button>
+    </div>
+</div>
+
+<div id="dictModal" class="modal">
+    <div class="modal-content">
+        <h2 style="margin-top:0; color:var(--primary)">Collins 2024 List</h2>
+        <div class="dict-grid" id="dict-list"></div>
+        <button class="btn btn-finish" style="margin-top:20px" onclick="toggleDict(false)">ปิดหน้าต่าง</button>
+    </div>
+</div>
+
+<script>
+// ข้อมูลคำศัพท์ 127 คำ ครบถ้วนตามใบรายการ
+const validWords = [
+    "AA", "AB", "AD", "AE", "AG", "AH", "AI", "AL", "AM", "AN", "AR", "AS", "AT", "AW", "AX", "AY",
+    "BA", "BE", "BI", "BO", "BY", "CH", "DA", "DE", "DI", "DO", "EA", "ED", "EE", "EF", "EH", "EL",
+    "EM", "EN", "ER", "ES", "ET", "EW", "EX", "FA", "FE", "FY", "GI", "GO", "GU", "HA", "HE", "HI",
+    "HM", "HO", "ID", "IF", "IN", "IO", "IS", "IT", "JA", "JO", "KA", "KI", "KO", "KY", "LA", "LI",
+    "LO", "MA", "ME", "MI", "MM", "MO", "MU", "MY", "NA", "NE", "NO", "NU", "NY", "OB", "OD", "OE",
+    "OF", "OH", "OI", "OK", "OM", "ON", "OP", "OR", "OS", "OT", "OW", "OX", "OY", "PA", "PE", "PI",
+    "PO", "QI", "RE", "SH", "SI", "SO", "ST", "TA", "TE", "TI", "TO", "UG", "UH", "UM", "UN", "UP",
+    "US", "UT", "WE", "WO", "XI", "XU", "YA", "YE", "YO", "ZA", "ZO", "OU", "OO", "YU", "ZE", "UR",
+];
+
+let userWords = [];
+let timerInterval;
+
+// สร้างรายการพจนานุกรม
+const dictList = document.getElementById('dict-list');
+validWords.forEach(w => {
+    let div = document.createElement('div');
+    div.className = 'dict-item';
+    div.innerText = w;
+    dictList.appendChild(div);
+});
+
+function toggleDict(show) {
+    document.getElementById('dictModal').style.display = show ? 'block' : 'none';
+}
+
+function startGame() {
+    document.getElementById('lobby-screen').classList.remove('active');
+    document.getElementById('game-screen').classList.add('active');
+    document.getElementById('word-input').focus();
+    let start = Date.now();
+    timerInterval = setInterval(() => {
+        let diff = Math.floor((Date.now() - start) / 1000);
+        let m = Math.floor(diff/60), s = diff%60;
+        document.getElementById('timer').innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }, 1000);
+}
+
+document.getElementById('word-input').addEventListener('input', (e) => {
+    let val = e.target.value.toUpperCase().trim();
+    if(val.length === 2) {
+        userWords.push(val);
+        let tag = document.createElement('div');
+        tag.className = 'word-tag';
+        tag.innerText = val;
+        document.getElementById('stack-display').prepend(tag);
+        e.target.value = "";
+    }
+});
+
+function finishGame() {
+    clearInterval(timerInterval);
+    document.getElementById('game-screen').classList.remove('active');
+    document.getElementById('result-screen').classList.add('active');
+    let ok = 0, no = 0, html = "", seen = new Set();
+    userWords.forEach(w => {
+        if(validWords.includes(w) && !seen.has(w)) {
+            ok++;
+            html += `<span class="correct">${w}</span> `;
+            seen.add(w);
+        } else {
+            no++;
+            html += `<span class="wrong">${w}</span> `;
+        }
+    });
+    document.getElementById('res-stats').innerHTML = `<b style="color:var(--success)">ถูก: ${ok}</b> | <b style="color:var(--danger)">ผิด/ซ้ำ: ${no}</b>`;
+    document.getElementById('res-details').innerHTML = html;
+}
+</script>
+</body>
+</html>
